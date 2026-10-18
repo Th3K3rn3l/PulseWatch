@@ -29,3 +29,17 @@ jobs:
         run: docker build -f deploy/Dockerfile -t pulsewatch:ci .
       - name: Validate compose config
         run: docker compose -f deploy/docker-compose.yml config --quiet
+      - name: Smoke test compose stack
+        run: |
+          cd deploy
+          docker compose up -d --build
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:2112/healthz >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://localhost:2112/metrics | grep -q pulsewatch_jobs_dropped_total
+          docker compose ps
+          docker compose logs pulsewatch
+          docker compose down -v
