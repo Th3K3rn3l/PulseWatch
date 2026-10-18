@@ -40,6 +40,14 @@ func New(threshold int, m *metrics.Metrics, log *slog.Logger) *Alerter {
 	}
 }
 
+// Forget drops the alert state of a target (e.g. when the target is
+// removed), so a later re-add starts with a clean slate.
+func (a *Alerter) Forget(targetID int64) {
+	a.mu.Lock()
+	delete(a.states, targetID)
+	a.mu.Unlock()
+}
+
 // Observe ingests a check result and updates the alert state of the target.
 func (a *Alerter) Observe(target model.Target, check model.Check) {
 	a.mu.Lock()

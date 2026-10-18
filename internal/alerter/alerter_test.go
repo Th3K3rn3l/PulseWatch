@@ -72,3 +72,31 @@ func TestAlerterTracksTargetsIndependently(t *testing.T) {
 		t.Fatalf("second target alerts = %v, want 0", got)
 	}
 }
+
+func TestAlerterForgetResetsState(t *testing.T) {
+	m := metrics.New(prometheus.NewRegistry())
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	a := New(2, m, log)
+
+	target := model.Target{ID: 7, URL: "https://forgotten.example.com"}
+	alerts := func() float64 {
+		return testutil.ToFloat64(m.AlertsTotal.WithLabelValues(target.URL))
+	}
+
+	a.Observe(target, model.Check{OK: false})
+	a.Observe(target, model.Check{OK: false})
+	if alerts() != 1 {
+		t.Fatalf("alerts before forget = %v, want 1", alerts())
+	}
+
+	// A removed target must not leak its firing state into a future re-add.
+	a.Forget(target.ID)
+	a.Observe(target, model.Check{OK: false})
+	if alerts() != 1 {
+		t.Fatalf("alerts after forget = %v, want 1 (state must be reset)", alerts())
+	}
+	a.Observe(target, model.Check{OK: false})
+	if alerts() != 2 {
+		t.Fatalf("alerts after new outage = %v, want 2", alerts())
+	}
+}
