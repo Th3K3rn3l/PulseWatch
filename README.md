@@ -89,7 +89,7 @@ grpcurl -plaintext -d '{"id":1}' localhost:50051 pulsewatch.v1.PulseWatch/Remove
 ```
 
 `GetStats` возвращает `total_checks`, `failed_checks`, `uptime_percent`, `avg_latency_ms`, `p95_latency_ms`.
-`AddTarget` идемпотентен по URL: повторный вызов обновляет имя и интервал. Интервал ограничивается диапазоном 5–3600 секунд.
+`AddTarget` идемпотентен по URL: повторный вызов обновляет имя и интервал и перезапускает расписание цели. Интервал ограничивается диапазоном 5–3600 секунд.
 
 ## Метрики
 

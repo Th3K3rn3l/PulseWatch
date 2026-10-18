@@ -51,6 +51,12 @@ func (f *fakeProber) Probe(ctx context.Context, t model.Target) model.Check {
 	}
 }
 
+func (f *fakeProber) count() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.calls
+}
+
 type fakeStore struct {
 	mu     sync.Mutex
 	checks []model.Check
@@ -151,5 +157,27 @@ func TestManagerStopRemovesRunner(t *testing.T) {
 	if running {
 		t.Fatal("target is still running after Stop")
 	}
+	mgr.Shutdown()
+}
+
+func TestManagerRestartsTargetWithNewInterval(t *testing.T) {
+	prober := &fakeProber{latencyMS: 1}
+	store := &fakeStore{}
+	mgr, _ := newTestManager(t, prober, store, Config{Workers: 2, QueueSize: 64})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	mgr.Run(ctx, nil)
+
+	target := model.Target{ID: 1, URL: "https://example.com", Interval: 10 * time.Second}
+	mgr.Start(target)
+	waitFor(t, 5*time.Second, func() bool { return prober.count() >= 1 })
+
+	// AddTarget on an existing URL updates the interval in the DB and calls
+	// Start again: the old 10s ticker must be replaced by the new one.
+	target.Interval = 25 * time.Millisecond
+	mgr.Start(target)
+	waitFor(t, 5*time.Second, func() bool { return prober.count() >= 5 })
+
 	mgr.Shutdown()
 }

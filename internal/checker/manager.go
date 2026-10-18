@@ -88,8 +88,10 @@ func (m *Manager) Start(t model.Target) {
 	if !m.started {
 		return
 	}
-	if _, ok := m.runners[t.ID]; ok {
-		return
+	if cancel, ok := m.runners[t.ID]; ok {
+		// The target already exists (AddTarget is a no-op restart on the
+		// same URL), so replace the runner to apply a new interval.
+		cancel()
 	}
 	ctx, cancel := context.WithCancel(m.ctx)
 	m.runners[t.ID] = cancel
@@ -106,6 +108,7 @@ func (m *Manager) Stop(id int64) {
 	if ok {
 		cancel()
 	}
+	m.alerter.Forget(id)
 }
 
 // Shutdown stops all producers, then closes the queue and waits for the
