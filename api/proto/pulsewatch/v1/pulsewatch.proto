@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package pulsewatch.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Th3K3rn3l/PulseWatch/gen/pulsewatch/v1;pulsewatchv1";
+
+// PulseWatch — сервис мониторинга доступности HTTP-сервисов.
+service PulseWatch {
+  // AddTarget добавляет цель мониторинга. Идемпотентно по URL:
+  // повторный вызов обновляет имя и интервал.
+  rpc AddTarget(AddTargetRequest) returns (AddTargetResponse);
+
+  // RemoveTarget удаляет цель вместе со всей её историей проверок.
+  rpc RemoveTarget(RemoveTargetRequest) returns (RemoveTargetResponse);
+
+  // ListTargets возвращает все цели мониторинга.
+  rpc ListTargets(ListTargetsRequest) returns (ListTargetsResponse);
+
+  // ListChecks возвращает последние проверки цели, от новых к старым.
+  rpc ListChecks(ListChecksRequest) returns (ListChecksResponse);
+
+  // GetStats возвращает агрегированную статистику цели за окно времени:
+  // uptime, среднюю и p95 задержку.
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+// Target — цель мониторинга.
+message Target {
+  int64 id = 1;
+  string url = 2;
+  string name = 3;
+  uint32 interval_seconds = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// Check — результат одной проверки.
+message Check {
+  int64 id = 1;
+  int64 target_id = 2;
+  google.protobuf.Timestamp checked_at = 3;
+  bool ok = 4;
+  int32 status_code = 5;
+  int64 latency_ms = 6;
+  string error = 7;
+}
+
+// Stats — агрегаты по проверкам цели за окно времени.
+message Stats {
+  int64 target_id = 1;
+  uint64 total_checks = 2;
+  uint64 failed_checks = 3;
+  double uptime_percent = 4;
+  double avg_latency_ms = 5;
+  double p95_latency_ms = 6;
+}
+
+message AddTargetRequest {
+  string url = 1;
+  string name = 2;
+  uint32 interval_seconds = 3;
+}
+
+message AddTargetResponse {
+  Target target = 1;
+}
+
+message RemoveTargetRequest {
+  int64 id = 1;
+}
+
+message RemoveTargetResponse {}
+
+message ListTargetsRequest {}
+
+message ListTargetsResponse {
+  repeated Target targets = 1;
+}
+
+message ListChecksRequest {
+  int64 target_id = 1;
+  uint32 limit = 2;
+}
+
+message ListChecksResponse {
+  repeated Check checks = 1;
+}
+
+message GetStatsRequest {
+  int64 target_id = 1;
+  uint32 window_hours = 2;
+}
+
+message GetStatsResponse {
+  Stats stats = 1;
+}
